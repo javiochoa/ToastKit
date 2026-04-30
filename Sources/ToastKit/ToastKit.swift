@@ -177,11 +177,11 @@ public struct CustomToast: View {
           if !withIcon && !withSfsymbol {
             VStack {
                 Text(title.toMarkdown)
-                .font(.custom(font, size: titleFontSize))
-                .font(.system(size: titleFontSize))
-                .fontWeight(titleFontWeight)
-                .foregroundStyle(titleFontColor)
-                .multilineTextAlignment(multilineTextAlignment)
+//                .font(.custom(font, size: titleFontSize))
+//                .font(.system(size: titleFontSize))
+//                .fontWeight(titleFontWeight)
+//                .foregroundStyle(titleFontColor)
+//                .multilineTextAlignment(multilineTextAlignment)
               
               if !subtitle.isEmpty {
                 Text(subtitle)
@@ -210,10 +210,10 @@ public struct CustomToast: View {
               }
               
               Text(title.toMarkdown)
-                .font(.custom(font, size: titleFontSize))
-                .fontWeight(titleFontWeight)
-                .foregroundStyle(titleFontColor)
-                .multilineTextAlignment(multilineTextAlignment)
+//                .font(.custom(font, size: titleFontSize))
+//                .fontWeight(titleFontWeight)
+//                .foregroundStyle(titleFontColor)
+//                .multilineTextAlignment(multilineTextAlignment)
             }
             .environment(\.layoutDirection, layoutDirection)
           }
