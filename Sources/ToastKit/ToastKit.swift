@@ -117,7 +117,7 @@ public struct CustomToast: View {
     glassColor: Color = .clear
   ) {
     _isVisible = isVisible
-    self.title = title
+      self.title = title
     self.toastColor = toastColor
     self.transitionType = transitionType
     self.subtitle = subtitle
@@ -176,7 +176,7 @@ public struct CustomToast: View {
         HStack {
           if !withIcon && !withSfsymbol {
             VStack {
-              Text(title)
+                Text(title.toMarkdown)
                 .font(.custom(font, size: titleFontSize))
                 .font(.system(size: titleFontSize))
                 .fontWeight(titleFontWeight)
@@ -209,7 +209,7 @@ public struct CustomToast: View {
                   .frame(width: iconSize, height: iconSize)
               }
               
-              Text(title)
+              Text(title.toMarkdown)
                 .font(.custom(font, size: titleFontSize))
                 .fontWeight(titleFontWeight)
                 .foregroundStyle(titleFontColor)
