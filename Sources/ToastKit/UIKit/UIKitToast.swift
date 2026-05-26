@@ -22,6 +22,7 @@ public enum UIKitToastAttachmentEdge {
 public struct UIKitToastConfiguration {
     public var title: String
     public var subtitle: String
+    public var contentView: UIView?
     public var toastColor: ToastColorTypes
     public var position: UIKitToastPosition
     public var autoDisappear: Bool
@@ -67,8 +68,9 @@ public struct UIKitToastConfiguration {
     public var blurEffectStyle: UIBlurEffect.Style?
 
     public init(
-        title: String,
+        title: String = "",
         subtitle: String = "",
+        contentView: UIView? = nil,
         toastColor: ToastColorTypes = .success,
         position: UIKitToastPosition = .top,
         autoDisappear: Bool = true,
@@ -107,6 +109,7 @@ public struct UIKitToastConfiguration {
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.contentView = contentView
         self.toastColor = toastColor
         self.position = position
         self.autoDisappear = autoDisappear
@@ -231,6 +234,25 @@ public extension UIView {
     }
 
     @discardableResult
+    func showToast(
+        contentView: UIView,
+        toastColor: ToastColorTypes = .success,
+        position: UIKitToastPosition = .top,
+        autoDisappear: Bool = true,
+        autoDisappearDuration: TimeInterval = 2.0
+    ) -> UIKitToastPresentation {
+        showToast(
+            UIKitToastConfiguration(
+                contentView: contentView,
+                toastColor: toastColor,
+                position: position,
+                autoDisappear: autoDisappear,
+                autoDisappearDuration: autoDisappearDuration
+            )
+        )
+    }
+
+    @discardableResult
     func showSuccessToast(title: String, autoDisappearDuration: TimeInterval = 2.0) -> UIKitToastPresentation {
         showToast(title: title, toastColor: .success, autoDisappearDuration: autoDisappearDuration)
     }
@@ -270,6 +292,23 @@ public extension UIViewController {
             title: title,
             toastColor: toastColor,
             position: position,
+            autoDisappearDuration: autoDisappearDuration
+        )
+    }
+
+    @discardableResult
+    func showToast(
+        contentView: UIView,
+        toastColor: ToastColorTypes = .success,
+        position: UIKitToastPosition = .top,
+        autoDisappear: Bool = true,
+        autoDisappearDuration: TimeInterval = 2.0
+    ) -> UIKitToastPresentation {
+        view.showToast(
+            contentView: contentView,
+            toastColor: toastColor,
+            position: position,
+            autoDisappear: autoDisappear,
             autoDisappearDuration: autoDisappearDuration
         )
     }
@@ -350,7 +389,7 @@ private final class UIKitToastView: UIView {
             contentStack.addArrangedSubview(iconView)
         }
 
-        contentStack.addArrangedSubview(makeTextStack())
+        contentStack.addArrangedSubview(makeMainContentView())
 
         if !configuration.autoDisappear {
             contentStack.addArrangedSubview(makeCloseButton())
@@ -362,6 +401,15 @@ private final class UIKitToastView: UIView {
             contentStack.topAnchor.constraint(equalTo: topAnchor, constant: configuration.innerVpadding),
             contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -configuration.innerVpadding)
         ])
+    }
+
+    private func makeMainContentView() -> UIView {
+        if let contentView = configuration.contentView {
+            contentView.translatesAutoresizingMaskIntoConstraints = false
+            return contentView
+        }
+
+        return makeTextStack()
     }
 
     private func makeTextStack() -> UIStackView {

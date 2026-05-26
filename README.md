@@ -396,6 +396,31 @@ final class ProfileViewController: UIViewController {
       )
     )
   }
+
+  func showCustomViewToast() {
+    let statusView = UIStackView()
+    statusView.axis = .vertical
+    statusView.spacing = 4
+
+    let titleLabel = UILabel()
+    titleLabel.text = "Upload complete"
+    titleLabel.font = .preferredFont(forTextStyle: .headline)
+
+    let subtitleLabel = UILabel()
+    subtitleLabel.text = "12 files synced"
+    subtitleLabel.font = .preferredFont(forTextStyle: .subheadline)
+
+    statusView.addArrangedSubview(titleLabel)
+    statusView.addArrangedSubview(subtitleLabel)
+
+    showToast(
+      UIKitToastConfiguration(
+        contentView: statusView,
+        toastColor: .info,
+        position: .bottom
+      )
+    )
+  }
 }
 ```
 
