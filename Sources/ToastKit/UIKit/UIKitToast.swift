@@ -6,6 +6,16 @@ import UIKit
 public enum UIKitToastPosition {
     case top
     case bottom
+    case attached(to: UIView, edge: UIKitToastAttachmentEdge = .bottom, offset: CGFloat = 8)
+}
+
+@available(iOS 16.0, *)
+public enum UIKitToastAttachmentEdge {
+    case top
+    case bottom
+    case leading
+    case trailing
+    case center
 }
 
 @available(iOS 16.0, *)
@@ -167,7 +177,6 @@ public extension UIView {
     @discardableResult
     func showToast(_ configuration: UIKitToastConfiguration) -> UIKitToastPresentation {
         let toastView = UIKitToastView(configuration: configuration)
-        let stackView = toastStackView(for: configuration)
 
         toastView.translatesAutoresizingMaskIntoConstraints = false
         toastView.onClose = { [weak toastView, weak self] in
@@ -175,19 +184,12 @@ public extension UIView {
             UIKitToastAnimator.dismiss(toastView, in: self, animated: true)
         }
 
-        if configuration.position == .top {
-            stackView.insertArrangedSubview(toastView, at: 0)
-        } else {
-            stackView.addArrangedSubview(toastView)
+        switch configuration.position {
+        case .top, .bottom:
+            addStackedToast(toastView, configuration: configuration)
+        case .attached:
+            addAttachedToast(toastView, configuration: configuration)
         }
-
-        let widthConstraint: NSLayoutConstraint
-        if configuration.maxWidth {
-            widthConstraint = toastView.widthAnchor.constraint(equalTo: stackView.widthAnchor, constant: -(configuration.outerHpadding * 2))
-        } else {
-            widthConstraint = toastView.widthAnchor.constraint(lessThanOrEqualTo: stackView.widthAnchor, constant: -(configuration.outerHpadding * 2))
-        }
-        widthConstraint.isActive = true
 
         layoutIfNeeded()
         UIKitToastAnimator.present(toastView)
@@ -521,6 +523,77 @@ private var bottomToastStackKey: UInt8 = 0
 @available(iOS 16.0, *)
 @MainActor
 private extension UIView {
+    func addStackedToast(_ toastView: UIKitToastView, configuration: UIKitToastConfiguration) {
+        let stackView = toastStackView(for: configuration)
+
+        switch configuration.position {
+        case .top:
+            stackView.insertArrangedSubview(toastView, at: 0)
+        case .bottom:
+            stackView.addArrangedSubview(toastView)
+        case .attached:
+            return
+        }
+
+        toastWidthConstraint(for: toastView, relativeTo: stackView, configuration: configuration).isActive = true
+    }
+
+    func addAttachedToast(_ toastView: UIKitToastView, configuration: UIKitToastConfiguration) {
+        guard case .attached(let anchorView, let edge, let offset) = configuration.position else { return }
+
+        guard anchorView === self || anchorView.isDescendant(of: self) else {
+            assertionFailure("Attached toast anchor view must be this view or one of its descendants.")
+            var fallbackConfiguration = configuration
+            fallbackConfiguration.position = .top
+            addStackedToast(toastView, configuration: fallbackConfiguration)
+            return
+        }
+
+        addSubview(toastView)
+
+        let guide = safeAreaLayoutGuide
+        var constraints = [
+            toastWidthConstraint(for: toastView, relativeTo: guide, configuration: configuration)
+        ]
+
+        let topBoundary = toastView.topAnchor.constraint(greaterThanOrEqualTo: guide.topAnchor, constant: configuration.outerVpadding)
+        let bottomBoundary = toastView.bottomAnchor.constraint(lessThanOrEqualTo: guide.bottomAnchor, constant: -configuration.outerVpadding)
+        let leadingBoundary = toastView.leadingAnchor.constraint(greaterThanOrEqualTo: guide.leadingAnchor, constant: configuration.outerHpadding)
+        let trailingBoundary = toastView.trailingAnchor.constraint(lessThanOrEqualTo: guide.trailingAnchor, constant: -configuration.outerHpadding)
+        [topBoundary, bottomBoundary, leadingBoundary, trailingBoundary].forEach { $0.priority = .defaultHigh }
+        constraints.append(contentsOf: [topBoundary, bottomBoundary, leadingBoundary, trailingBoundary])
+
+        switch edge {
+        case .top:
+            constraints.append(contentsOf: [
+                toastView.bottomAnchor.constraint(equalTo: anchorView.topAnchor, constant: -offset),
+                toastView.centerXAnchor.constraint(equalTo: anchorView.centerXAnchor)
+            ])
+        case .bottom:
+            constraints.append(contentsOf: [
+                toastView.topAnchor.constraint(equalTo: anchorView.bottomAnchor, constant: offset),
+                toastView.centerXAnchor.constraint(equalTo: anchorView.centerXAnchor)
+            ])
+        case .leading:
+            constraints.append(contentsOf: [
+                toastView.trailingAnchor.constraint(equalTo: anchorView.leadingAnchor, constant: -offset),
+                toastView.centerYAnchor.constraint(equalTo: anchorView.centerYAnchor)
+            ])
+        case .trailing:
+            constraints.append(contentsOf: [
+                toastView.leadingAnchor.constraint(equalTo: anchorView.trailingAnchor, constant: offset),
+                toastView.centerYAnchor.constraint(equalTo: anchorView.centerYAnchor)
+            ])
+        case .center:
+            constraints.append(contentsOf: [
+                toastView.centerXAnchor.constraint(equalTo: anchorView.centerXAnchor),
+                toastView.centerYAnchor.constraint(equalTo: anchorView.centerYAnchor)
+            ])
+        }
+
+        NSLayoutConstraint.activate(constraints)
+    }
+
     func toastStackView(for configuration: UIKitToastConfiguration) -> UIStackView {
         if let stackView = existingToastStack(for: configuration.position) {
             stackView.spacing = configuration.toastSpacing
@@ -542,6 +615,8 @@ private extension UIView {
             verticalConstraint = stackView.topAnchor.constraint(equalTo: guide.topAnchor, constant: configuration.outerVpadding)
         case .bottom:
             verticalConstraint = stackView.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -configuration.outerVpadding)
+        case .attached:
+            verticalConstraint = stackView.topAnchor.constraint(equalTo: guide.topAnchor, constant: configuration.outerVpadding)
         }
 
         NSLayoutConstraint.activate([
@@ -554,26 +629,54 @@ private extension UIView {
         return stackView
     }
 
+    func toastWidthConstraint(
+        for toastView: UIKitToastView,
+        relativeTo view: UIView,
+        configuration: UIKitToastConfiguration
+    ) -> NSLayoutConstraint {
+        if configuration.maxWidth {
+            return toastView.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -(configuration.outerHpadding * 2))
+        }
+
+        return toastView.widthAnchor.constraint(lessThanOrEqualTo: view.widthAnchor, constant: -(configuration.outerHpadding * 2))
+    }
+
+    func toastWidthConstraint(
+        for toastView: UIKitToastView,
+        relativeTo guide: UILayoutGuide,
+        configuration: UIKitToastConfiguration
+    ) -> NSLayoutConstraint {
+        if configuration.maxWidth {
+            return toastView.widthAnchor.constraint(equalTo: guide.widthAnchor, constant: -(configuration.outerHpadding * 2))
+        }
+
+        return toastView.widthAnchor.constraint(lessThanOrEqualTo: guide.widthAnchor, constant: -(configuration.outerHpadding * 2))
+    }
+
     func existingToastStack(for position: UIKitToastPosition) -> UIStackView? {
-        let key = toastStackKey(for: position)
+        guard let key = toastStackKey(for: position) else { return nil }
         guard let stackView = objc_getAssociatedObject(self, key) as? UIStackView else { return nil }
         return stackView.superview === self ? stackView : nil
     }
 
     func setToastStack(_ stackView: UIStackView, for position: UIKitToastPosition) {
-        objc_setAssociatedObject(self, toastStackKey(for: position), stackView, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        guard let key = toastStackKey(for: position) else { return }
+        objc_setAssociatedObject(self, key, stackView, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
 
     func clearToastStack(for position: UIKitToastPosition) {
-        objc_setAssociatedObject(self, toastStackKey(for: position), nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        guard let key = toastStackKey(for: position) else { return }
+        objc_setAssociatedObject(self, key, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
 
-    func toastStackKey(for position: UIKitToastPosition) -> UnsafeRawPointer {
+    func toastStackKey(for position: UIKitToastPosition) -> UnsafeRawPointer? {
         switch position {
         case .top:
             return UnsafeRawPointer(&topToastStackKey)
         case .bottom:
             return UnsafeRawPointer(&bottomToastStackKey)
+        case .attached:
+            return nil
         }
     }
 }
@@ -820,6 +923,26 @@ private extension UIKitToastPosition {
             return CGAffineTransform(translationX: 0, y: -16)
         case .bottom:
             return CGAffineTransform(translationX: 0, y: 16)
+        case .attached(_, let edge, _):
+            return edge.presentingTransform
+        }
+    }
+}
+
+@available(iOS 16.0, *)
+private extension UIKitToastAttachmentEdge {
+    var presentingTransform: CGAffineTransform {
+        switch self {
+        case .top:
+            return CGAffineTransform(translationX: 0, y: -16)
+        case .bottom:
+            return CGAffineTransform(translationX: 0, y: 16)
+        case .leading:
+            return CGAffineTransform(translationX: -16, y: 0)
+        case .trailing:
+            return CGAffineTransform(translationX: 16, y: 0)
+        case .center:
+            return CGAffineTransform(scaleX: 0.96, y: 0.96)
         }
     }
 }

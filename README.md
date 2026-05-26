@@ -386,6 +386,16 @@ final class ProfileViewController: UIViewController {
       )
     )
   }
+
+  func showAttachedToast(button: UIButton) {
+    showToast(
+      UIKitToastConfiguration(
+        title: "Saved",
+        toastColor: .success,
+        position: .attached(to: button, edge: .bottom, offset: 8)
+      )
+    )
+  }
 }
 ```
 
