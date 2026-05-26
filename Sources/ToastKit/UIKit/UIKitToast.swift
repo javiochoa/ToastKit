@@ -67,10 +67,10 @@ public struct UIKitToastConfiguration {
         fontName: String? = "SFProDisplay",
         titleFontSize: CGFloat = 16,
         titleFontWeight: UIFont.Weight = .regular,
-        titleFontColor: UIColor = .white,
+        titleFontColor: UIColor = .black,
         subtitleFontSize: CGFloat = 14,
         subtitleFontWeight: UIFont.Weight = .regular,
-        subtitleFontColor: UIColor = .white,
+        subtitleFontColor: UIColor = .black,
         multilineTextAlignment: NSTextAlignment = .center,
         innerHpadding: CGFloat = 20,
         innerVpadding: CGFloat = 10,
@@ -364,9 +364,12 @@ private final class UIKitToastView: UIView {
 
     private func makeTextStack() -> UIStackView {
         let titleLabel = UILabel()
-        titleLabel.text = configuration.title
-        titleLabel.textColor = configuration.titleFontColor
-        titleLabel.font = configuration.scaledFont(size: configuration.titleFontSize, weight: configuration.titleFontWeight)
+        titleLabel.attributedText = configuration.markdownAttributedText(
+            from: configuration.title,
+            size: configuration.titleFontSize,
+            weight: configuration.titleFontWeight,
+            color: configuration.titleFontColor
+        )
         titleLabel.textAlignment = configuration.multilineTextAlignment
         titleLabel.numberOfLines = 0
         titleLabel.adjustsFontForContentSizeCategory = true
@@ -378,9 +381,12 @@ private final class UIKitToastView: UIView {
 
         if !configuration.subtitle.isEmpty {
             let subtitleLabel = UILabel()
-            subtitleLabel.text = configuration.subtitle
-            subtitleLabel.textColor = configuration.subtitleFontColor
-            subtitleLabel.font = configuration.scaledFont(size: configuration.subtitleFontSize, weight: configuration.subtitleFontWeight)
+            subtitleLabel.attributedText = configuration.markdownAttributedText(
+                from: configuration.subtitle,
+                size: configuration.subtitleFontSize,
+                weight: configuration.subtitleFontWeight,
+                color: configuration.subtitleFontColor
+            )
             subtitleLabel.textAlignment = configuration.multilineTextAlignment
             subtitleLabel.numberOfLines = 0
             subtitleLabel.adjustsFontForContentSizeCategory = true
@@ -598,6 +604,67 @@ private extension UIKitToastConfiguration {
         }
 
         return UIFontMetrics.default.scaledFont(for: baseFont)
+    }
+
+    func markdownAttributedText(
+        from markdown: String,
+        size: CGFloat,
+        weight: UIFont.Weight,
+        color: UIColor
+    ) -> NSAttributedString {
+        let attributedText: NSMutableAttributedString
+        do {
+            attributedText = NSMutableAttributedString(attributedString: try NSAttributedString(markdown: markdown))
+        } catch {
+            attributedText = NSMutableAttributedString(string: markdown)
+        }
+
+        let fullRange = NSRange(location: 0, length: attributedText.length)
+        guard fullRange.length > 0 else { return attributedText }
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = multilineTextAlignment
+
+        attributedText.addAttributes([
+            .foregroundColor: color,
+            .paragraphStyle: paragraphStyle
+        ], range: fullRange)
+
+        var intentRanges: [(NSRange, InlinePresentationIntent?)] = []
+        attributedText.enumerateAttribute(.inlinePresentationIntent, in: fullRange) { value, range, _ in
+            intentRanges.append((range, value as? InlinePresentationIntent))
+        }
+
+        for (range, intent) in intentRanges {
+            attributedText.addAttribute(.font, value: markdownFont(size: size, weight: weight, intent: intent), range: range)
+
+            if intent?.contains(.strikethrough) == true {
+                attributedText.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range)
+            }
+        }
+
+        attributedText.enumerateAttribute(.link, in: fullRange) { value, range, _ in
+            guard value != nil else { return }
+            attributedText.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: range)
+        }
+
+        return attributedText
+    }
+
+    func markdownFont(size: CGFloat, weight: UIFont.Weight, intent: InlinePresentationIntent?) -> UIFont {
+        if intent?.contains(.code) == true {
+            return UIFontMetrics.default.scaledFont(for: .monospacedSystemFont(ofSize: size, weight: weight))
+        }
+
+        let fontWeight: UIFont.Weight = intent?.contains(.stronglyEmphasized) == true ? .bold : weight
+        let baseFont = scaledFont(size: size, weight: fontWeight)
+        guard intent?.contains(.emphasized) == true else { return baseFont }
+
+        var traits = baseFont.fontDescriptor.symbolicTraits
+        traits.insert(.traitItalic)
+
+        guard let descriptor = baseFont.fontDescriptor.withSymbolicTraits(traits) else { return baseFont }
+        return UIFont(descriptor: descriptor, size: baseFont.pointSize)
     }
 }
 
