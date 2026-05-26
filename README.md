@@ -362,6 +362,42 @@ struct ProfileView: View {
 
 -----------
 
+## UIKit Usage
+ToastKit can also be used from UIKit through `UIViewController` or `UIView` helpers.
+
+```swift
+import ToastKit
+import UIKit
+
+final class ProfileViewController: UIViewController {
+  func saveProfile() {
+    showSuccessToast(title: "Profile saved")
+  }
+
+  func showOfflineToast() {
+    showToast(
+      UIKitToastConfiguration(
+        title: "No connection",
+        subtitle: "Try again when you are back online.",
+        toastColor: .warning,
+        position: .bottom,
+        autoDisappear: false,
+        sfSymbolName: "wifi.slash"
+      )
+    )
+  }
+}
+```
+
+You can keep the returned `UIKitToastPresentation` if you want to dismiss the toast manually:
+
+```swift
+let presentation = showToast(title: "Uploading", toastColor: .info)
+presentation.dismiss()
+```
+
+-----------
+
 
 ## ⚠️ Alternatively, you can utilize the `.toast` method to construct a fully customizable toast by specifying the following parameters:
 
