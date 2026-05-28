@@ -7,6 +7,7 @@ public enum UIKitToastPosition {
     case top
     case bottom
     case attached(to: UIView, edge: UIKitToastAttachmentEdge = .bottom, offset: CGFloat = 8)
+    case overlayAttached(to: UIView, edge: UIKitToastAttachmentEdge = .bottom, offset: CGFloat = 8)
 }
 
 @available(iOS 16.0, *)
@@ -180,28 +181,33 @@ public extension UIView {
     @discardableResult
     func showToast(_ configuration: UIKitToastConfiguration) -> UIKitToastPresentation {
         let toastView = UIKitToastView(configuration: configuration)
-
         toastView.translatesAutoresizingMaskIntoConstraints = false
-        toastView.onClose = { [weak toastView, weak self] in
-            guard let toastView else { return }
-            UIKitToastAnimator.dismiss(toastView, in: self, animated: true)
-        }
 
+        let presentationContainer: UIView
         switch configuration.position {
         case .top, .bottom:
             addStackedToast(toastView, configuration: configuration)
+            presentationContainer = self
         case .attached:
             addAttachedToast(toastView, configuration: configuration)
+            presentationContainer = self
+        case .overlayAttached:
+            presentationContainer = addOverlayAttachedToast(toastView, configuration: configuration)
         }
 
-        layoutIfNeeded()
+        toastView.onClose = { [weak toastView, weak presentationContainer] in
+            guard let toastView else { return }
+            UIKitToastAnimator.dismiss(toastView, in: presentationContainer, animated: true)
+        }
+
+        presentationContainer.layoutIfNeeded()
         UIKitToastAnimator.present(toastView)
 
         let workItem: DispatchWorkItem?
         if configuration.autoDisappear {
-            let item = DispatchWorkItem { [weak self, weak toastView] in
+            let item = DispatchWorkItem { [weak presentationContainer, weak toastView] in
                 guard let toastView else { return }
-                UIKitToastAnimator.dismiss(toastView, in: self, animated: true)
+                UIKitToastAnimator.dismiss(toastView, in: presentationContainer, animated: true)
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.autoDisappearDuration, execute: item)
             workItem = item
@@ -210,7 +216,7 @@ public extension UIView {
         }
 
         return UIKitToastPresentation(
-            containerView: self,
+            containerView: presentationContainer,
             toastView: toastView,
             dismissalWorkItem: workItem
         )
@@ -579,7 +585,7 @@ private extension UIView {
             stackView.insertArrangedSubview(toastView, at: 0)
         case .bottom:
             stackView.addArrangedSubview(toastView)
-        case .attached:
+        case .attached, .overlayAttached:
             return
         }
 
@@ -598,7 +604,55 @@ private extension UIView {
         }
 
         addSubview(toastView)
+        constrainAttachedToast(toastView, to: anchorView, edge: edge, offset: offset, configuration: configuration)
+    }
 
+    func addOverlayAttachedToast(_ toastView: UIKitToastView, configuration: UIKitToastConfiguration) -> UIView {
+        guard case .overlayAttached(let anchorView, let edge, let offset) = configuration.position else { return self }
+
+        guard let containerView = overlayToastContainer(for: anchorView) else {
+            assertionFailure("Overlay attached toast anchor view must be in a window or share a superview with the presenting view.")
+            var fallbackConfiguration = configuration
+            fallbackConfiguration.position = .top
+            addStackedToast(toastView, configuration: fallbackConfiguration)
+            return self
+        }
+
+        containerView.addSubview(toastView)
+        containerView.constrainAttachedToast(toastView, to: anchorView, edge: edge, offset: offset, configuration: configuration)
+        return containerView
+    }
+
+    func overlayToastContainer(for anchorView: UIView) -> UIView? {
+        if let window = anchorView.window {
+            return window
+        }
+
+        return highestCommonSuperview(with: anchorView)
+    }
+
+    func highestCommonSuperview(with view: UIView) -> UIView? {
+        var candidate: UIView? = self
+        var commonSuperview: UIView?
+
+        while let currentView = candidate {
+            if view === currentView || view.isDescendant(of: currentView) {
+                commonSuperview = currentView
+            }
+
+            candidate = currentView.superview
+        }
+
+        return commonSuperview
+    }
+
+    func constrainAttachedToast(
+        _ toastView: UIKitToastView,
+        to anchorView: UIView,
+        edge: UIKitToastAttachmentEdge,
+        offset: CGFloat,
+        configuration: UIKitToastConfiguration
+    ) {
         let guide = safeAreaLayoutGuide
         var constraints = [
             toastWidthConstraint(for: toastView, relativeTo: guide, configuration: configuration)
@@ -663,7 +717,7 @@ private extension UIView {
             verticalConstraint = stackView.topAnchor.constraint(equalTo: guide.topAnchor, constant: configuration.outerVpadding)
         case .bottom:
             verticalConstraint = stackView.bottomAnchor.constraint(equalTo: guide.bottomAnchor, constant: -configuration.outerVpadding)
-        case .attached:
+        case .attached, .overlayAttached:
             verticalConstraint = stackView.topAnchor.constraint(equalTo: guide.topAnchor, constant: configuration.outerVpadding)
         }
 
@@ -723,7 +777,7 @@ private extension UIView {
             return UnsafeRawPointer(&topToastStackKey)
         case .bottom:
             return UnsafeRawPointer(&bottomToastStackKey)
-        case .attached:
+        case .attached, .overlayAttached:
             return nil
         }
     }
@@ -878,7 +932,7 @@ private extension UIKitToastPosition {
             return CGAffineTransform(translationX: 0, y: -16)
         case .bottom:
             return CGAffineTransform(translationX: 0, y: 16)
-        case .attached(_, let edge, _):
+        case .attached(_, let edge, _), .overlayAttached(_, let edge, _):
             return edge.presentingTransform
         }
     }
