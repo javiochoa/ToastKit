@@ -49,5 +49,37 @@ final class UIKitToastTests: XCTestCase {
         presentation.dismiss(animated: false)
         XCTAssertNil(toastView.superview)
     }
+
+    func testAttachedToastOffsetUsesTransformedAnchorFrame() throws {
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
+        let parentView = UIView(frame: window.bounds)
+        let anchorView = UIButton(frame: CGRect(x: 150, y: 220, width: 80, height: 32))
+        let offset: CGFloat = 24
+
+        anchorView.transform = CGAffineTransform(translationX: 0, y: 40)
+        window.addSubview(parentView)
+        parentView.addSubview(anchorView)
+        window.layoutIfNeeded()
+
+        let presentation = parentView.showToast(
+            UIKitToastConfiguration(
+                title: "Saved",
+                position: .attached(to: anchorView, edge: .bottom, offset: offset),
+                autoDisappear: false
+            )
+        )
+        parentView.layoutIfNeeded()
+
+        let toastView = try XCTUnwrap(parentView.subviews.first { $0 !== anchorView })
+        let anchorFrame = anchorView.convert(anchorView.bounds, to: parentView)
+        XCTAssertEqual(toastView.frame.minY - anchorFrame.maxY, offset, accuracy: 0.5)
+
+        presentation.dismiss(animated: false)
+        XCTAssertNil(toastView.superview)
+    }
 }
 #endif

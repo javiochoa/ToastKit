@@ -653,7 +653,14 @@ private extension UIView {
         offset: CGFloat,
         configuration: UIKitToastConfiguration
     ) {
+        layoutIfNeeded()
+
         let guide = safeAreaLayoutGuide
+        let anchorFrame = anchorView.convert(anchorView.bounds, to: self)
+        let anchorIsRightToLeft = anchorView.effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let anchorLeadingEdge = anchorIsRightToLeft ? anchorFrame.maxX : anchorFrame.minX
+        let anchorTrailingEdge = anchorIsRightToLeft ? anchorFrame.minX : anchorFrame.maxX
+
         var constraints = [
             toastWidthConstraint(for: toastView, relativeTo: guide, configuration: configuration)
         ]
@@ -668,28 +675,32 @@ private extension UIView {
         switch edge {
         case .top:
             constraints.append(contentsOf: [
-                toastView.bottomAnchor.constraint(equalTo: anchorView.topAnchor, constant: -offset),
-                toastView.centerXAnchor.constraint(equalTo: anchorView.centerXAnchor)
+                toastView.bottomAnchor.constraint(equalTo: topAnchor, constant: anchorFrame.minY - offset),
+                toastView.centerXAnchor.constraint(equalTo: leftAnchor, constant: anchorFrame.midX)
             ])
         case .bottom:
             constraints.append(contentsOf: [
-                toastView.topAnchor.constraint(equalTo: anchorView.bottomAnchor, constant: offset),
-                toastView.centerXAnchor.constraint(equalTo: anchorView.centerXAnchor)
+                toastView.topAnchor.constraint(equalTo: topAnchor, constant: anchorFrame.maxY + offset),
+                toastView.centerXAnchor.constraint(equalTo: leftAnchor, constant: anchorFrame.midX)
             ])
         case .leading:
-            constraints.append(contentsOf: [
-                toastView.trailingAnchor.constraint(equalTo: anchorView.leadingAnchor, constant: -offset),
-                toastView.centerYAnchor.constraint(equalTo: anchorView.centerYAnchor)
-            ])
+            if anchorIsRightToLeft {
+                constraints.append(toastView.leftAnchor.constraint(equalTo: leftAnchor, constant: anchorLeadingEdge + offset))
+            } else {
+                constraints.append(toastView.rightAnchor.constraint(equalTo: leftAnchor, constant: anchorLeadingEdge - offset))
+            }
+            constraints.append(toastView.centerYAnchor.constraint(equalTo: topAnchor, constant: anchorFrame.midY))
         case .trailing:
-            constraints.append(contentsOf: [
-                toastView.leadingAnchor.constraint(equalTo: anchorView.trailingAnchor, constant: offset),
-                toastView.centerYAnchor.constraint(equalTo: anchorView.centerYAnchor)
-            ])
+            if anchorIsRightToLeft {
+                constraints.append(toastView.rightAnchor.constraint(equalTo: leftAnchor, constant: anchorTrailingEdge - offset))
+            } else {
+                constraints.append(toastView.leftAnchor.constraint(equalTo: leftAnchor, constant: anchorTrailingEdge + offset))
+            }
+            constraints.append(toastView.centerYAnchor.constraint(equalTo: topAnchor, constant: anchorFrame.midY))
         case .center:
             constraints.append(contentsOf: [
-                toastView.centerXAnchor.constraint(equalTo: anchorView.centerXAnchor),
-                toastView.centerYAnchor.constraint(equalTo: anchorView.centerYAnchor)
+                toastView.centerXAnchor.constraint(equalTo: leftAnchor, constant: anchorFrame.midX),
+                toastView.centerYAnchor.constraint(equalTo: topAnchor, constant: anchorFrame.midY)
             ])
         }
 
