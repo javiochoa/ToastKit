@@ -19,6 +19,74 @@ final class UIKitToastTests: XCTestCase {
         XCTAssertEqual(configuration.toastColor.value, .blue)
     }
 
+    func testToastViewExposesTitleAndSubtitleToAccessibility() throws {
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let parentView = UIView(frame: window.bounds)
+        let anchorView = UIView(frame: CGRect(x: 100, y: 120, width: 80, height: 32))
+
+        window.addSubview(parentView)
+        parentView.addSubview(anchorView)
+
+        let presentation = parentView.showToast(
+            UIKitToastConfiguration(
+                title: "**Saved**",
+                subtitle: "Profile updated",
+                position: .attached(to: anchorView, edge: .bottom, offset: 8),
+                autoDisappear: false
+            )
+        )
+
+        let toastView = try XCTUnwrap(parentView.subviews.first { $0 !== anchorView })
+        XCTAssertTrue(toastView.isAccessibilityElement)
+        XCTAssertEqual(toastView.accessibilityLabel, "Saved. Profile updated")
+        XCTAssertEqual(toastView.accessibilityTraits, .staticText)
+        XCTAssertEqual(toastView.accessibilityCustomActions?.first?.name, "Dismiss toast")
+
+        presentation.dismiss(animated: false)
+        XCTAssertNil(toastView.superview)
+    }
+
+    func testContentViewToastUsesReadableContentForAccessibility() throws {
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let parentView = UIView(frame: window.bounds)
+        let anchorView = UIView(frame: CGRect(x: 100, y: 120, width: 80, height: 32))
+        let statusView = UIStackView()
+        let titleLabel = UILabel()
+        let subtitleLabel = UILabel()
+
+        titleLabel.text = "Upload complete"
+        subtitleLabel.text = "12 files synced"
+        statusView.axis = .vertical
+        statusView.addArrangedSubview(titleLabel)
+        statusView.addArrangedSubview(subtitleLabel)
+
+        window.addSubview(parentView)
+        parentView.addSubview(anchorView)
+
+        let presentation = parentView.showToast(
+            UIKitToastConfiguration(
+                contentView: statusView,
+                position: .attached(to: anchorView, edge: .bottom, offset: 8),
+                autoDisappear: false
+            )
+        )
+
+        let toastView = try XCTUnwrap(parentView.subviews.first { $0 !== anchorView })
+        XCTAssertTrue(toastView.isAccessibilityElement)
+        XCTAssertEqual(toastView.accessibilityLabel, "Upload complete. 12 files synced")
+
+        presentation.dismiss(animated: false)
+        XCTAssertNil(toastView.superview)
+    }
+
     func testOverlayAttachedToastIsAddedToAnchorWindow() throws {
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)

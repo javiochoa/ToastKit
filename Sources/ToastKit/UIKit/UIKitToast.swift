@@ -201,7 +201,9 @@ public extension UIView {
         }
 
         presentationContainer.layoutIfNeeded()
-        UIKitToastAnimator.present(toastView)
+        UIKitToastAnimator.present(toastView) { [weak toastView] in
+            toastView?.moveVoiceOverFocusIfNeeded()
+        }
 
         let workItem: DispatchWorkItem?
         if configuration.autoDisappear {
@@ -407,6 +409,52 @@ private final class UIKitToastView: UIView {
             contentStack.topAnchor.constraint(equalTo: topAnchor, constant: configuration.innerVpadding),
             contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -configuration.innerVpadding)
         ])
+
+        configureAccessibility()
+    }
+
+    func moveVoiceOverFocusIfNeeded() {
+        guard UIAccessibility.isVoiceOverRunning, window != nil else { return }
+        guard let announcement = accessibilityLabel?.toastAccessibilityTrimmedText, !announcement.isEmpty else { return }
+
+        UIAccessibility.post(notification: .layoutChanged, argument: self)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            guard let self, self.window != nil, UIAccessibility.isVoiceOverRunning else { return }
+            guard !self.containsVoiceOverFocus else {
+                return
+            }
+
+            UIAccessibility.post(notification: .announcement, argument: announcement)
+        }
+    }
+
+    private func configureAccessibility() {
+        let announcement = configuration.accessibilityAnnouncement
+        isAccessibilityElement = !announcement.isEmpty
+        accessibilityLabel = announcement.isEmpty ? nil : announcement
+        accessibilityTraits = .staticText
+
+        guard !configuration.autoDisappear else { return }
+        accessibilityCustomActions = [
+            UIAccessibilityCustomAction(name: "Dismiss toast", target: self, selector: #selector(performAccessibilityDismissToast))
+        ]
+    }
+
+    private var containsVoiceOverFocus: Bool {
+        let focusedElement = UIAccessibility.focusedElement(using: .notificationVoiceOver)
+
+        if let focusedObject = focusedElement as AnyObject?, focusedObject === self {
+            return true
+        }
+
+        guard let focusedView = focusedElement as? UIView else { return false }
+        return focusedView === self || focusedView.isDescendant(of: self)
+    }
+
+    @objc private func performAccessibilityDismissToast() -> Bool {
+        onClose?()
+        return true
     }
 
     private func makeMainContentView() -> UIView {
@@ -517,7 +565,7 @@ private final class UIKitToastView: UIView {
 @available(iOS 16.0, *)
 @MainActor
 private enum UIKitToastAnimator {
-    static func present(_ toastView: UIKitToastView) {
+    static func present(_ toastView: UIKitToastView, completion: (() -> Void)? = nil) {
         toastView.alpha = 0
         toastView.transform = toastView.position.presentingTransform
 
@@ -531,6 +579,8 @@ private enum UIKitToastAnimator {
             toastView.alpha = 1
             toastView.transform = .identity
             toastView.superview?.layoutIfNeeded()
+        } completion: { _ in
+            completion?()
         }
     }
 
@@ -792,6 +842,39 @@ private extension UIView {
             return nil
         }
     }
+
+    var toastAccessibilityText: String {
+        if let text = accessibilityLabel?.toastAccessibilityTrimmedText, !text.isEmpty {
+            return text
+        }
+
+        if let label = self as? UILabel, let text = label.text?.toastAccessibilityTrimmedText, !text.isEmpty {
+            return text
+        }
+
+        if let button = self as? UIButton, let title = button.title(for: .normal)?.toastAccessibilityTrimmedText, !title.isEmpty {
+            return title
+        }
+
+        if let textField = self as? UITextField, let text = textField.text?.toastAccessibilityTrimmedText, !text.isEmpty {
+            return text
+        }
+
+        if let textView = self as? UITextView, let text = textView.text?.toastAccessibilityTrimmedText, !text.isEmpty {
+            return text
+        }
+
+        return subviews
+            .map(\.toastAccessibilityText)
+            .filter { !$0.isEmpty }
+            .joined(separator: ". ")
+    }
+}
+
+private extension String {
+    var toastAccessibilityTrimmedText: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
 
 @available(iOS 16.0, *)
@@ -809,6 +892,32 @@ private extension UIKitToastConfiguration {
         }
 
         return nil
+    }
+
+    @MainActor
+    var accessibilityAnnouncement: String {
+        let contentText = contentView?.toastAccessibilityText ?? ""
+        if !contentText.isEmpty {
+            return contentText
+        }
+
+        return [
+            accessibilityPlainText(from: title),
+            accessibilityPlainText(from: subtitle)
+        ]
+        .filter { !$0.isEmpty }
+        .joined(separator: ". ")
+    }
+
+    func accessibilityPlainText(from markdown: String) -> String {
+        let trimmedMarkdown = markdown.toastAccessibilityTrimmedText
+        guard !trimmedMarkdown.isEmpty else { return "" }
+
+        if let attributedText = try? NSAttributedString(markdown: trimmedMarkdown) {
+            return attributedText.string.toastAccessibilityTrimmedText
+        }
+
+        return trimmedMarkdown
     }
 
     func scaledFont(size: CGFloat, weight: UIFont.Weight) -> UIFont {
