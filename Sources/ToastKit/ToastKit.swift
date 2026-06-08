@@ -33,6 +33,7 @@ public struct CustomToast: View {
   let innerVpadding: CGFloat
   let outterHpadding: CGFloat
   let stackAligment: Alignment
+  let stackAligmentMargin: CGFloat
   let isStackMaxHeight: Bool
   
   let cornerRadius: CGFloat
@@ -88,6 +89,7 @@ public struct CustomToast: View {
     innerVpadding: CGFloat = 10,
     outterHpadding: CGFloat = 20,
     stackAligment: Alignment = .top,
+    stackAligmentMargin: CGFloat = 0,
     isStackMaxHeight: Bool = true,
     
     cornerRadius: CGFloat = 12,
@@ -141,6 +143,7 @@ public struct CustomToast: View {
     self.innerVpadding = innerVpadding
     self.outterHpadding = outterHpadding
     self.stackAligment = stackAligment
+    self.stackAligmentMargin = stackAligmentMargin
     self.isStackMaxHeight = isStackMaxHeight
     
     self.cornerRadius = cornerRadius
@@ -168,6 +171,15 @@ public struct CustomToast: View {
     
     self.isGlass = isGlass
     self.glassColor = glassColor
+  }
+
+  private var stackAligmentEdgeInsets: EdgeInsets {
+    EdgeInsets(
+      top: stackAligment.vertical == .top ? stackAligmentMargin : 0,
+      leading: stackAligment.horizontal == .leading ? stackAligmentMargin : 0,
+      bottom: stackAligment.vertical == .bottom ? stackAligmentMargin : 0,
+      trailing: stackAligment.horizontal == .trailing ? stackAligmentMargin : 0
+    )
   }
   
   public var body: some View {
@@ -252,6 +264,7 @@ public struct CustomToast: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: stackAligment)
+    .padding(stackAligmentEdgeInsets)
     .if(isStackMaxHeight) { $0.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: stackAligment)}
     .onChange(of: isVisible) { newValue in
       if newValue {
