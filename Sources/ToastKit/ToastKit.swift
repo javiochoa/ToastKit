@@ -17,6 +17,7 @@ public struct CustomToast: View {
   let maxWidth: Bool
   
   let subtitle: String
+  let textStack: [String]
   
   let font: String
   let titleFontSize: CGFloat
@@ -64,7 +65,7 @@ public struct CustomToast: View {
   
   init(
     isVisible: Binding<Bool>,
-    title: String,
+    title: String = "",
     toastColor: ToastColorTypes = .success,
     transitionType: ToastTransitionType = .move(edge: .top),
     animation: Animation = .snappy,
@@ -73,6 +74,7 @@ public struct CustomToast: View {
     maxWidth: Bool = false,
     
     subtitle: String = "",
+    textStack: [String] = [],
     
     font: String = "SFProDisplay",
     titleFontSize: CGFloat = 16,
@@ -123,6 +125,7 @@ public struct CustomToast: View {
     self.toastColor = toastColor
     self.transitionType = transitionType
     self.subtitle = subtitle
+    self.textStack = textStack
     self.autoDisappear = autoDisappear
     self.autoDisappearDuration = autoDisappearDuration
     self.animation = animation
@@ -181,55 +184,58 @@ public struct CustomToast: View {
       trailing: stackAligment.horizontal == .trailing ? stackAligmentMargin : 0
     )
   }
+
+  private var visibleTextStack: [String] {
+    let configuredTextStack = textStack.filter { !$0.isEmpty }
+    guard !configuredTextStack.isEmpty else {
+      return [title, subtitle].filter { !$0.isEmpty }
+    }
+
+    return ([title] + configuredTextStack + [subtitle]).filter { !$0.isEmpty }
+  }
+
+  private var textStackAlignment: HorizontalAlignment {
+    switch multilineTextAlignment {
+    case .leading:
+      return .leading
+    case .trailing:
+      return .trailing
+    case .center:
+      return .center
+    }
+  }
   
   public var body: some View {
     ZStack(alignment: stackAligment) {
       if isVisible {
-        HStack {
-          if !withIcon && !withSfsymbol {
-            VStack {
-                Text(title.toMarkdown)
-//                .font(.custom(font, size: titleFontSize))
-//                .font(.system(size: titleFontSize))
-//                .fontWeight(titleFontWeight)
-//                .foregroundStyle(titleFontColor)
-//                .multilineTextAlignment(multilineTextAlignment)
-              
-              if !subtitle.isEmpty {
-                Text(subtitle)
-                  .font(.custom(font, size: subtitleFontSize))
-                  .fontWeight(subtitleFontWeight)
-                  .foregroundStyle(subtitleFontColor)
-                  .multilineTextAlignment(multilineTextAlignment)
-              }
+        HStack(spacing: 20) {
+          if withSfsymbol {
+            Image(systemName: sfSymbolName ?? "")
+              .renderingMode(.template)
+              .resizable()
+              .scaledToFit()
+              .frame(width: sfSymbolSize, height: sfSymbolSize)
+              .foregroundStyle(sfSymbolColor ?? .clear)
+          } else if withIcon {
+            Image(iconName ?? "")
+              .resizable()
+              .renderingMode(iconColor != nil ? .template : .original)
+              .scaledToFit()
+              .foregroundStyle(iconColor ?? .clear)
+              .frame(width: iconSize, height: iconSize)
+          }
+
+          VStack(alignment: textStackAlignment, spacing: 2) {
+            ForEach(Array(visibleTextStack.enumerated()), id: \.offset) { index, text in
+              Text(text.toMarkdown)
+                .font(.custom(font, size: index == 0 ? titleFontSize : subtitleFontSize))
+                .fontWeight(index == 0 ? titleFontWeight : subtitleFontWeight)
+                .foregroundStyle(index == 0 ? titleFontColor : subtitleFontColor)
+                .multilineTextAlignment(multilineTextAlignment)
             }
-          } else {
-            HStack(spacing: 20) {
-              if withSfsymbol {
-                Image(systemName: sfSymbolName ?? "")
-                  .renderingMode(.template)
-                  .resizable()
-                  .scaledToFit()
-                  .frame(width: sfSymbolSize, height: sfSymbolSize)
-                  .foregroundStyle(sfSymbolColor ?? .clear)
-              } else {
-                Image(iconName ?? "")
-                  .resizable()
-                  .renderingMode(iconColor != nil ? .template : .original)
-                  .scaledToFit()
-                  .foregroundStyle(iconColor ?? .clear)
-                  .frame(width: iconSize, height: iconSize)
-              }
-              
-              Text(title.toMarkdown)
-//                .font(.custom(font, size: titleFontSize))
-//                .fontWeight(titleFontWeight)
-//                .foregroundStyle(titleFontColor)
-//                .multilineTextAlignment(multilineTextAlignment)
-            }
-            .environment(\.layoutDirection, layoutDirection)
           }
         }
+        .environment(\.layoutDirection, layoutDirection)
         .padding(.horizontal, innerHpadding)
         .padding(.vertical, innerVpadding)
         .if(maxWidth) { $0.frame(maxWidth: .infinity)}

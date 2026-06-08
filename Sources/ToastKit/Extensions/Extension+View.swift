@@ -25,7 +25,7 @@ public extension View {
 public extension View {
   func toast(
     isVisible: Binding<Bool>,
-    title: String,
+    title: String = "",
     toastColor: ToastColorTypes = .success,
     transitionType: ToastTransitionType = .move(edge: .top),
     animation: Animation = .snappy,
@@ -33,6 +33,7 @@ public extension View {
     autoDisappearDuration: TimeInterval = 2.0,
     maxWidth: Bool = false,
     subtitle: String = "",
+    textStack: [String] = [],
     font: String = "SFProDisplay",
     titleFontSize: CGFloat = 16,
     titleFontWeight: Font.Weight = .semibold,
@@ -79,6 +80,7 @@ public extension View {
           autoDisappearDuration: autoDisappearDuration,
           maxWidth: maxWidth,
           subtitle: subtitle,
+          textStack: textStack,
           font: font,
           titleFontSize: titleFontSize,
           titleFontWeight: titleFontWeight,
