@@ -228,7 +228,7 @@ public struct CustomToast: View {
           VStack(alignment: textStackAlignment, spacing: 2) {
             ForEach(Array(visibleTextStack.enumerated()), id: \.offset) { index, text in
               Text(text.toMarkdown)
-                Text(.init(text.toMarkdown))
+                Text(.init(text/*.toMarkdown*/))
                 .font(.custom(font, size: index == 0 ? titleFontSize : subtitleFontSize))
                 .fontWeight(index == 0 ? titleFontWeight : subtitleFontWeight)
                 .foregroundStyle(index == 0 ? titleFontColor : subtitleFontColor)
