@@ -87,6 +87,32 @@ final class UIKitToastTests: XCTestCase {
         XCTAssertNil(toastView.superview)
     }
 
+    func testToastViewHasTapGestureForDismissal() throws {
+        let animationsWereEnabled = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let parentView = UIView(frame: window.bounds)
+
+        window.addSubview(parentView)
+
+        let presentation = parentView.showToast(
+            UIKitToastConfiguration(
+                title: "Saved",
+                position: .attached(to: parentView, edge: .center),
+                autoDisappear: false
+            )
+        )
+
+        let toastView = try XCTUnwrap(parentView.subviews.first)
+        let tapGesture = try XCTUnwrap(toastView.gestureRecognizers?.compactMap { $0 as? UITapGestureRecognizer }.first)
+        XCTAssertFalse(tapGesture.cancelsTouchesInView)
+
+        presentation.dismiss(animated: false)
+        XCTAssertNil(toastView.superview)
+    }
+
     func testOverlayAttachedToastIsAddedToAnchorWindow() throws {
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)

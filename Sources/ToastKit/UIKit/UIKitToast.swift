@@ -348,6 +348,7 @@ private final class UIKitToastView: UIView {
     var onClose: (() -> Void)?
 
     private let configuration: UIKitToastConfiguration
+    private var didRequestDismissal = false
 
     init(configuration: UIKitToastConfiguration) {
         self.configuration = configuration
@@ -410,6 +411,7 @@ private final class UIKitToastView: UIView {
             contentStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -configuration.innerVpadding)
         ])
 
+        configureTapGesture()
         configureAccessibility()
     }
 
@@ -427,6 +429,12 @@ private final class UIKitToastView: UIView {
 
             UIAccessibility.post(notification: .announcement, argument: announcement)
         }
+    }
+
+    private func configureTapGesture() {
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleToastTap))
+        tapGesture.cancelsTouchesInView = false
+        addGestureRecognizer(tapGesture)
     }
 
     private func configureAccessibility() {
@@ -452,9 +460,19 @@ private final class UIKitToastView: UIView {
         return focusedView === self || focusedView.isDescendant(of: self)
     }
 
+    @objc private func handleToastTap() {
+        requestDismissal()
+    }
+
     @objc private func performAccessibilityDismissToast() -> Bool {
-        onClose?()
+        requestDismissal()
         return true
+    }
+
+    private func requestDismissal() {
+        guard !didRequestDismissal else { return }
+        didRequestDismissal = true
+        onClose?()
     }
 
     private func makeMainContentView() -> UIView {
@@ -548,7 +566,7 @@ private final class UIKitToastView: UIView {
 
         closeButton.addAction(
             UIAction { [weak self] _ in
-                self?.onClose?()
+                self?.requestDismissal()
             },
             for: .touchUpInside
         )
