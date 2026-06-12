@@ -204,6 +204,10 @@ public struct CustomToast: View {
       return .center
     }
   }
+
+  private func dismissToast() {
+    isVisible = false
+  }
   
   public var body: some View {
     ZStack(alignment: stackAligment) {
@@ -237,6 +241,14 @@ public struct CustomToast: View {
           }
         }
         .environment(\.layoutDirection, layoutDirection)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Haz doble click para cerrar")
+        .accessibilityAction(.default) {
+          dismissToast()
+        }
+        .accessibilityAction(named: "Cerrar la ventana informativa") {
+          dismissToast()
+        }
         .padding(.horizontal, innerHpadding)
         .padding(.vertical, innerVpadding)
         .if(maxWidth) { $0.frame(maxWidth: .infinity)}
@@ -248,7 +260,7 @@ public struct CustomToast: View {
           if !autoDisappear {
             ZStack {
               Button {
-                isVisible = false
+                dismissToast()
               } label: {
                 Image(systemName: closeSFicon)
                   .renderingMode(.template)

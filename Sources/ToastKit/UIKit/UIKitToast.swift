@@ -444,11 +444,10 @@ private final class UIKitToastView: UIView {
         let announcement = configuration.accessibilityAnnouncement
         isAccessibilityElement = !announcement.isEmpty
         accessibilityLabel = announcement.isEmpty ? nil : announcement
+        accessibilityHint = "Haz doble click para cerrar"
         accessibilityTraits = .staticText
-
-        guard !configuration.autoDisappear else { return }
         accessibilityCustomActions = [
-            UIAccessibilityCustomAction(name: "Dismiss toast", target: self, selector: #selector(performAccessibilityDismissToast))
+            UIAccessibilityCustomAction(name: "Cerrar la ventana informativa", target: self, selector: #selector(performAccessibilityDismissToast))
         ]
     }
 
@@ -463,12 +462,17 @@ private final class UIKitToastView: UIView {
         return focusedView === self || focusedView.isDescendant(of: self)
     }
 
+    override func accessibilityActivate() -> Bool {
+        requestDismissal(notifyTapDismiss: true)
+        return true
+    }
+
     @objc private func handleToastTap() {
         requestDismissal(notifyTapDismiss: true)
     }
 
     @objc private func performAccessibilityDismissToast() -> Bool {
-        requestDismissal()
+        requestDismissal(notifyTapDismiss: true)
         return true
     }
 
@@ -564,7 +568,7 @@ private final class UIKitToastView: UIView {
         let closeButton = UIButton(type: .system)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         closeButton.tintColor = configuration.closeSFIconColor
-        closeButton.accessibilityLabel = "Dismiss toast"
+        closeButton.accessibilityLabel = "Cerrar la ventana informativa"
 
         if let image = UIImage(systemName: configuration.closeSFIcon) {
             closeButton.setImage(image, for: .normal)

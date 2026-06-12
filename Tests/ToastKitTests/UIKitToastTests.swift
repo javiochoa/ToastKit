@@ -112,8 +112,7 @@ final class UIKitToastTests: XCTestCase {
         let toastView = try XCTUnwrap(parentView.subviews.first)
         let tapGesture = try XCTUnwrap(toastView.gestureRecognizers?.compactMap { $0 as? UITapGestureRecognizer }.first)
         XCTAssertFalse(tapGesture.cancelsTouchesInView)
-
-        toastView.perform(NSSelectorFromString("handleToastTap"))
+        XCTAssertTrue(toastView.accessibilityActivate())
         XCTAssertTrue(didNotifyTapDismiss)
 
         presentation.dismiss(animated: false)
