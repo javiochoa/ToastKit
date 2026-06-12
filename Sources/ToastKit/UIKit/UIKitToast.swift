@@ -67,6 +67,7 @@ public struct UIKitToastConfiguration {
     public var closeSFIconColor: UIColor
 
     public var blurEffectStyle: UIBlurEffect.Style?
+    public var onTapDismiss: (() -> Void)?
 
     public init(
         title: String = "",
@@ -106,7 +107,8 @@ public struct UIKitToastConfiguration {
         closeSFIcon: String = "x.circle",
         closeSFIconSize: CGSize = CGSize(width: 18, height: 18),
         closeSFIconColor: UIColor = .white,
-        blurEffectStyle: UIBlurEffect.Style? = nil
+        blurEffectStyle: UIBlurEffect.Style? = nil,
+        onTapDismiss: (() -> Void)? = nil
     ) {
         self.title = title
         self.subtitle = subtitle
@@ -146,6 +148,7 @@ public struct UIKitToastConfiguration {
         self.closeSFIconSize = closeSFIconSize
         self.closeSFIconColor = closeSFIconColor
         self.blurEffectStyle = blurEffectStyle
+        self.onTapDismiss = onTapDismiss
     }
 }
 
@@ -461,7 +464,7 @@ private final class UIKitToastView: UIView {
     }
 
     @objc private func handleToastTap() {
-        requestDismissal()
+        requestDismissal(notifyTapDismiss: true)
     }
 
     @objc private func performAccessibilityDismissToast() -> Bool {
@@ -469,9 +472,12 @@ private final class UIKitToastView: UIView {
         return true
     }
 
-    private func requestDismissal() {
+    private func requestDismissal(notifyTapDismiss: Bool = false) {
         guard !didRequestDismissal else { return }
         didRequestDismissal = true
+        if notifyTapDismiss {
+            configuration.onTapDismiss?()
+        }
         onClose?()
     }
 
