@@ -403,10 +403,6 @@ private final class UIKitToastView: UIView {
 
         contentStack.addArrangedSubview(makeMainContentView())
 
-        if !configuration.autoDisappear {
-            contentStack.addArrangedSubview(makeCloseButton())
-        }
-
         NSLayoutConstraint.activate([
             contentStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: configuration.innerHpadding),
             contentStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -configuration.innerHpadding),
