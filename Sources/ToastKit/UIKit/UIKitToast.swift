@@ -177,7 +177,7 @@ public final class UIKitToastPresentation {
         UIKitToastAnimator.dismiss(toastView, in: containerView, animated: animated)
     }
     
-    func focusAccessibilityOn() {
+    public func focusAccessibilityOn() {
         guard let toastView else { return }
         UIAccessibility.setFocusTo(toastView, inTime: 0.5)
     }
