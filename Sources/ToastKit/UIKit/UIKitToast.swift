@@ -445,7 +445,7 @@ private final class UIKitToastView: UIView {
         let announcement = configuration.accessibilityAnnouncement
         isAccessibilityElement = !announcement.isEmpty
         accessibilityLabel = announcement.isEmpty ? nil : announcement
-        accessibilityHint = "Haz doble click para cerrar"
+        accessibilityHint = "Pulsa dos veces para cerrar la información."
         accessibilityTraits = .staticText
         accessibilityCustomActions = [
             UIAccessibilityCustomAction(name: "Cerrar la ventana informativa", target: self, selector: #selector(performAccessibilityDismissToast))

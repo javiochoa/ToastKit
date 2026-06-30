@@ -242,7 +242,7 @@ public struct CustomToast: View {
         }
         .environment(\.layoutDirection, layoutDirection)
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Haz doble click para cerrar")
+        .accessibilityHint("Pulsa dos veces para cerrar la información.")
         .accessibilityAction(.default) {
           dismissToast()
         }
